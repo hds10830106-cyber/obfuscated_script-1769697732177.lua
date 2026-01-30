@@ -1,0 +1,309 @@
+-- ========= SERVICES =========
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+
+-- ========= PLAYER GUI =========
+local PlayerGui = player:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ToolPanelGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = PlayerGui
+
+-- ========= FLOAT BUTTON =========
+local floatButton = Instance.new("TextButton")
+floatButton.Size = UDim2.new(0,50,0,50)
+floatButton.Position = UDim2.new(0,20,0.5,-25)
+floatButton.BackgroundColor3 = Color3.fromRGB(100,255,100)
+floatButton.Text = "工具"
+floatButton.TextColor3 = Color3.fromRGB(255,255,255)
+floatButton.Parent = screenGui
+
+-- ========= MAIN PANEL =========
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,300,0,500)
+mainFrame.Position = UDim2.new(0,80,0.5,-250)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+-- ========= TITLE BAR =========
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,30)
+titleBar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Text = "工具面板 - 創作者 LDplay1163"
+titleLabel.Size = UDim2.new(1,-40,1,0)
+titleLabel.Position = UDim2.new(0,10,0,0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Text = "X"
+closeButton.Size = UDim2.new(0,30,1,0)
+closeButton.Position = UDim2.new(1,-30,0,0)
+closeButton.BackgroundColor3 = Color3.fromRGB(255,100,100)
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.Parent = titleBar
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
+-- ========= DRAG =========
+local dragging, dragInput, mousePos, framePos
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        mainFrame.Position = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
+    end
+end)
+floatButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- ========= SCROLL FRAME =========
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1,-20,1,-50)
+scrollFrame.Position = UDim2.new(0,10,0,40)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.CanvasSize = UDim2.new(0,0,0,0)
+scrollFrame.ScrollBarThickness = 8
+scrollFrame.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
+scrollFrame.Parent = mainFrame
+
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Padding = UDim.new(0,10)
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Parent = scrollFrame
+
+local uiPadding = Instance.new("UIPadding")
+uiPadding.PaddingTop = UDim.new(0,10)
+uiPadding.PaddingBottom = UDim.new(0,10)
+uiPadding.PaddingLeft = UDim.new(0,5)
+uiPadding.PaddingRight = UDim.new(0,5)
+uiPadding.Parent = scrollFrame
+
+-- ========= TOOLS DATA =========
+local toolsData = {
+    {Name="綠色能量", Color=Color3.fromRGB(0,255,0), JumpPower=100, Gravity=70, Speed=16},
+    {Name="橘色能量", Color=Color3.fromRGB(255,165,0), JumpPower=150, Gravity=50, Speed=32},
+    {Name="紅色能量", Color=Color3.fromRGB(255,0,0), JumpPower=200, Gravity=30, Speed=64},
+    {Name="綠色速度圈", Color=Color3.fromRGB(0,255,0), Speed=50},
+    {Name="橘色速度圈", Color=Color3.fromRGB(255,165,0), Speed=100},
+    {Name="紅色速度圈", Color=Color3.fromRGB(255,0,0), Speed=200},
+    {Name="UP PART", Color=Color3.fromRGB(0,0,255)},
+    {Name="收音機", Color=Color3.fromRGB(200,200,0)}
+}
+
+-- ========= CREATE TOOL =========
+local function createTool(data)
+    local char = player.Character or player.CharacterAdded:Wait()
+    for _, item in ipairs(player.Backpack:GetChildren()) do
+        if item:IsA("Tool") and item.Name == data.Name then
+            item:Destroy()
+        end
+    end
+    for _, item in ipairs(char:GetChildren()) do
+        if item:IsA("Tool") and item.Name == data.Name then
+            item:Destroy()
+        end
+    end
+
+    local tool = Instance.new("Tool")
+    tool.Name = data.Name
+    tool.RequiresHandle = false
+    tool.Parent = player.Backpack
+
+    tool.Equipped:Connect(function()
+        local c = player.Character
+        if not c then return end
+        local humanoid = c:FindFirstChild("Humanoid")
+        if humanoid then
+            if data.Speed then
+                humanoid.WalkSpeed = data.Speed
+            end
+        end
+
+        -- UP PART
+        if data.Name == "UP PART" then
+            local hrp = c:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local part = Instance.new("Part")
+                part.Size = Vector3.new(4,1,4)
+                part.Anchored = true
+                part.CanCollide = true
+                part.Color = Color3.fromRGB(0,0,255)
+                part.Name = "UP_PART"
+                part.Material = Enum.Material.SmoothPlastic
+                part.Parent = workspace
+                part.CFrame = hrp.CFrame * CFrame.new(0,-3,0)
+                local bodyPos = Instance.new("BodyPosition")
+                bodyPos.MaxForce = Vector3.new(1e5,1e5,1e5)
+                bodyPos.Position = part.Position
+                bodyPos.Parent = part
+
+                -- UP/DOWN Buttons
+                local upButton = Instance.new("TextButton")
+                upButton.Text = "UP"
+                upButton.Size = UDim2.new(0,50,0,30)
+                upButton.Position = UDim2.new(1,10,0,0)
+                upButton.Parent = screenGui
+                upButton.MouseButton1Click:Connect(function()
+                    bodyPos.Position = bodyPos.Position + Vector3.new(0,1,0)
+                end)
+
+                local downButton = Instance.new("TextButton")
+                downButton.Text = "DOWN"
+                downButton.Size = UDim2.new(0,50,0,30)
+                downButton.Position = UDim2.new(1,10,0,40)
+                downButton.Parent = screenGui
+                downButton.MouseButton1Click:Connect(function()
+                    bodyPos.Position = bodyPos.Position - Vector3.new(0,1,0)
+                end)
+
+                RunService.RenderStepped:Connect(function()
+                    bodyPos.Position = hrp.Position - Vector3.new(0,3,0)
+                end)
+
+                tool.Unequipped:Connect(function()
+                    part:Destroy()
+                    upButton:Destroy()
+                    downButton:Destroy()
+                    if humanoid then humanoid.WalkSpeed = 16 end
+                end)
+            end
+        end
+
+        -- 收音機
+        if data.Name == "收音機" then
+            local radioFrame = Instance.new("Frame")
+            radioFrame.Size = UDim2.new(0,200,0,100)
+            radioFrame.Position = UDim2.new(0.5,-100,0.5,-50)
+            radioFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+            radioFrame.BackgroundTransparency = 0.5
+            radioFrame.Visible = false
+            radioFrame.Parent = mainFrame
+
+            local ids = {"102705292327383","94795832918617","98881456926953"}
+            local selectedID = ids[1]
+
+            local buttons = {}
+            for i,id in ipairs(ids) do
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(0,60,0,30)
+                btn.Position = UDim2.new(0.1 + (i-1)*0.3,0,0.2,0)
+                btn.Text = "ID"..i
+                btn.Parent = radioFrame
+                btn.MouseButton1Click:Connect(function()
+                    selectedID = id
+                end)
+                table.insert(buttons,btn)
+            end
+
+            local playButton = Instance.new("TextButton")
+            playButton.Size = UDim2.new(0,80,0,30)
+            playButton.Position = UDim2.new(0.35,0,0.6,0)
+            playButton.Text = "PLAY"
+            playButton.Parent = radioFrame
+
+            local sound = Instance.new("Sound")
+            sound.Parent = workspace
+            sound.Looped = true
+
+            playButton.MouseButton1Click:Connect(function()
+                if selectedID then
+                    sound.SoundId = "rbxassetid://"..selectedID
+                    sound:Play()
+                    radioFrame.Visible = false
+                end
+            end)
+
+            UIS.InputBegan:Connect(function(input)
+                if input.KeyCode == Enum.KeyCode.P then
+                    radioFrame.Visible = not radioFrame.Visible
+                end
+            end)
+
+            tool.Unequipped:Connect(function()
+                radioFrame:Destroy()
+                sound:Stop()
+            end)
+        end
+    end)
+
+    -- UNEQUIPPED EFFECT
+    tool.Unequipped:Connect(function()
+        local c = player.Character
+        if not c then return end
+        local humanoid = c:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = 16 end
+    end)
+
+    return tool
+end
+
+-- ========= CREATE BUTTONS =========
+for _, data in ipairs(toolsData) do
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1,0,0,90)
+    frame.BackgroundTransparency = 1
+    frame.Parent = scrollFrame
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,40)
+    btn.Position = UDim2.new(0,0,0,0)
+    btn.BackgroundColor3 = data.Color
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = "生成 "..data.Name
+    btn.Parent = frame
+
+    local equipBtn = Instance.new("TextButton")
+    equipBtn.Size = UDim2.new(1,0,0,40)
+    equipBtn.Position = UDim2.new(0,0,0,50)
+    equipBtn.BackgroundColor3 = Color3.fromRGB(150,150,150)
+    equipBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    equipBtn.Text = "強制裝備 "..data.Name
+    equipBtn.Parent = frame
+
+    btn.MouseButton1Click:Connect(function()
+        createTool(data)
+        scrollFrame.CanvasSize = UDim2.new(0,0,0,uiListLayout.AbsoluteContentSize.Y + 10)
+    end)
+
+    equipBtn.MouseButton1Click:Connect(function()
+        local tool = createTool(data)
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:WaitForChild("Humanoid")
+        humanoid:EquipTool(tool)
+        scrollFrame.CanvasSize = UDim2.new(0,0,0,uiListLayout.AbsoluteContentSize.Y + 10)
+    end)
+end
